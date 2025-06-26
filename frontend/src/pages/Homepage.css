@@ -1,0 +1,20 @@
+/* Homepage.css */
+
+.hero-button:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease-in-out;
+  cursor: pointer;
+  background-color: #5a273b;
+  color: white;
+}
+
+
+.feature:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease-in-out;
+  cursor: pointer;
+  background-color: #7e5e63;
+  color: white;
+}
