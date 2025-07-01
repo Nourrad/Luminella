@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
-
+import './Questionnaires.css';
 
 function Profile() {
   const location = useLocation();
@@ -9,7 +9,7 @@ function Profile() {
   const [products, setProducts] = useState([]);
   const [selectedProducts, setSelectedProducts] = useState({});
 
-  const userId = localStorage.getItem('userId'); // Optional: If you store userId in localStorage after login
+  const userId = localStorage.getItem('userId');
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -41,25 +41,28 @@ function Profile() {
   };
 
   return (
-    <div>
-      <h2>Welcome to your profile!</h2>
-      <p>Your skin type is: <strong>{skinType}</strong></p>
+    <div className="questionnaire" style={{ backgroundColor: '#f0ede5', minHeight: '100vh' }}>
+      <Navbar />
+      <div className="questionnaire-inner">
+        <h2 className="questionnaire-title">👤 Your Profile</h2>
+        <p>Your skin type is: <strong>{skinType}</strong></p>
 
-      <h3>Recommended Products:</h3>
-      {products.map((p) => (
-        <div key={p.id} style={{ marginBottom: '1rem' }}>
-          <p><strong>{p.name}</strong> ({p.type})</p>
-          <img src={`/images/${p.image_url}`} alt={p.name} width="100" />
+        <h3 style={{ marginTop: '2rem' }}>Recommended Products:</h3>
+        {products.map((p) => (
+          <div key={p.id} style={{ marginBottom: '1rem', padding: '1rem', border: '1px solid #ccc', borderRadius: '8px' }}>
+            <p><strong>{p.name}</strong> ({p.type})</p>
+            <img src={`/images/${p.image_url}`} alt={p.name} width="100" style={{ borderRadius: '8px' }} />
 
-          <select onChange={(e) => toggleProduct(p.id, e.target.value)}>
-            <option value="">Choose usage time</option>
-            <option value="morning">Morning</option>
-            <option value="night">Night</option>
-          </select>
-        </div>
-      ))}
+            <select onChange={(e) => toggleProduct(p.id, e.target.value)} className="input-field" style={{ marginTop: '0.5rem' }}>
+              <option value="">Choose usage time</option>
+              <option value="morning">Morning</option>
+              <option value="night">Night</option>
+            </select>
+          </div>
+        ))}
 
-      <button onClick={handleSubmit}>Save Schedule</button>
+        <button onClick={handleSubmit}>Save Schedule</button>
+      </div>
     </div>
   );
 }

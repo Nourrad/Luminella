@@ -43,7 +43,7 @@ function Navbar() {
     <nav style={styles.navbar}>
       {[
         { label: '✨ Homepage', path: '/' },
-        { label: '📅 Calendar', path: '/calendar' },
+        { label: '📅 Calendar', path: '/ProductCalendar' },
         { label: '📚 My Shelf', path: '/shelf' },
         { label: '🔍 Search Products', path: '/search' },
         { label: '👤 Profile', path: '/profile' },
