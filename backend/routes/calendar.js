@@ -1,14 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const authenticate = require('../middleware/authMiddleware'); // 🔒 Firebase token auth
 
-// ✅ Existing: Save a calendar entry with productId
-router.post('/', async (req, res) => {
-  const { userId, productId, usageTime, notes } = req.body;
+// 🔒 Protected: Save a calendar entry with Firebase UID
+router.post('/', authenticate, async (req, res) => {
+  const { productId, usageTime, notes } = req.body;
+  const firebaseUid = req.user.uid;
+
   try {
     await db.query(
-      'INSERT INTO calendar_entries (user_id, product_id, usage_time, notes) VALUES ($1, $2, $3, $4)',
-      [userId, productId, usageTime, notes]
+      'INSERT INTO calendar_entries (firebase_uid, product_id, usage_time, notes) VALUES ($1, $2, $3, $4)',
+      [firebaseUid, productId, usageTime, notes]
     );
     res.status(201).json({ message: 'Calendar entry saved!' });
   } catch (err) {
@@ -17,15 +20,16 @@ router.post('/', async (req, res) => {
   }
 });
 
-// ✅ New: Save calendar entry using product_name (frontend support)
-router.post('/by-name', async (req, res) => {
-  const { userId, product_name, usage_time } = req.body;
-  if (!userId || !product_name || !usage_time) {
+// 🔒 Protected: Save calendar entry using product_name
+router.post('/by-name', authenticate, async (req, res) => {
+  const { product_name, usage_time } = req.body;
+  const firebaseUid = req.user.uid;
+
+  if (!product_name || !usage_time) {
     return res.status(400).json({ error: 'Missing fields' });
   }
 
   try {
-    // First, get productId from name (assuming you have a products table)
     const result = await db.query(
       'SELECT id FROM products WHERE name = $1 LIMIT 1',
       [product_name]
@@ -38,8 +42,8 @@ router.post('/by-name', async (req, res) => {
     const productId = result.rows[0].id;
 
     await db.query(
-      'INSERT INTO calendar_entries (user_id, product_id, usage_time) VALUES ($1, $2, $3)',
-      [userId, productId, usage_time]
+      'INSERT INTO calendar_entries (firebase_uid, product_id, usage_time) VALUES ($1, $2, $3)',
+      [firebaseUid, productId, usage_time]
     );
 
     res.status(201).json({ message: 'Calendar entry saved by product name!' });
@@ -49,18 +53,46 @@ router.post('/by-name', async (req, res) => {
   }
 });
 
-// Get entries for a user
-router.get('/:userId', async (req, res) => {
-  const { userId } = req.params;
+// 🔒 Protected: Get entries for logged-in user
+router.get('/:uid', authenticate, async (req, res) => {
+  const requestedUid = req.params.uid;
+  const tokenUid = req.user.uid;
+
+  if (requestedUid !== tokenUid) {
+    return res.status(403).json({ error: 'Unauthorized access' });
+  }
+
   try {
     const result = await db.query(
-      'SELECT * FROM calendar_entries WHERE user_id = $1 ORDER BY usage_time',
-      [userId]
+      'SELECT * FROM calendar_entries WHERE firebase_uid = $1 ORDER BY usage_time',
+      [tokenUid]
     );
     res.json(result.rows);
   } catch (err) {
     console.error('❌ Calendar Fetch Error:', err.message);
     res.status(500).json({ error: 'Failed to fetch calendar entries' });
+  }
+});
+
+// 🔒 DELETE /api/calendar/:entryId
+router.delete('/:entryId', authenticate, async (req, res) => {
+  const entryId = req.params.entryId;
+  const firebaseUid = req.user.uid;
+
+  try {
+    const result = await db.query(
+      'DELETE FROM calendar_entries WHERE id = $1 AND firebase_uid = $2',
+      [entryId, firebaseUid]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Entry not found or unauthorized' });
+    }
+
+    res.json({ message: 'Entry deleted successfully' });
+  } catch (err) {
+    console.error('❌ Delete error:', err.message);
+    res.status(500).json({ error: 'Failed to delete calendar entry' });
   }
 });
 

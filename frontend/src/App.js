@@ -12,6 +12,7 @@ import Register from './pages/Register';
 import Profile from './pages/Profile';
 import ProductCalendar from './pages/ProductCalendar.jsx';
 import Footer from './pages/Footer';
+import Login from './pages/Login.jsx';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
       <>
         <Routes>
           <Route path="/" element={<Homepage />} />
+          <Route path="/login" element={<Login />} />
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/ProductCalendar" element={<ProductCalendar userId={1} />} />
           <Route path="/shelf" element={<MyShelf />} />
