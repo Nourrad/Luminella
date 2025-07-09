@@ -30,9 +30,22 @@ const db = require('../db');
 
 console.log('✅ products.js is loaded');
 
-router.get('/test', async (req, res) => {
-  console.log('🎯 /api/products/test route was hit');
-  res.json({ message: 'Test successful!' });
+router.get('/:category/:skinType', async (req, res) => {
+  const { category, skinType } = req.params;
+
+  try {
+    const result = await db.query(
+      `SELECT * FROM products 
+       WHERE LOWER(category) = LOWER($1) 
+       AND $2 = ANY(suitable_for)`,
+      [category, skinType]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error('❌ Error fetching filtered products:', err.message);
+    res.status(500).json({ error: 'Failed to fetch filtered products' });
+  }
 });
 
 module.exports = router;
