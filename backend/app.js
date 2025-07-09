@@ -6,6 +6,8 @@ const authRoutes = require('./routes/auth');
 const questionnaireRoutes = require('./routes/questionnaire');
 const calendarRoutes = require('./routes/calendar');
 const db = require('./db'); //added day4
+// const userRoutes = require('./routes/user');
+
 
 require('dotenv').config(); // Load .env variables
 
@@ -26,6 +28,8 @@ app.use('/api/schedule', scheduleRoutes);
 console.log('✅Loading questionnaireRoutes...');
 app.use('/api/questionnaire', questionnaireRoutes);
 app.use('/api/calendar', calendarRoutes);
+// app.use('/api/user', userRoutes);
+
 
 
 // generic `/api`
