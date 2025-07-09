@@ -105,7 +105,7 @@ const Login = () => {
     e.preventDefault();
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigate('/home');
+      navigate('/profile');
     } catch (err) {
       setError('Invalid email or password.');
     }
