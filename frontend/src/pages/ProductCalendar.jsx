@@ -4,7 +4,7 @@ import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import CircleDayView from './CircleDayView';
 import './ProductCalendar.css';
-import { auth } from '../firebase/firebase';
+import { auth, db } from '../firebase/firebase';
 import Navbar from './Navbar';
 
 const localizer = momentLocalizer(moment);
@@ -195,3 +195,4 @@ const ProductCalendar = () => {
 };
 
 export default ProductCalendar;
+

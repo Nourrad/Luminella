@@ -2,7 +2,9 @@
 
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-// TODO: Add SDKs for Firebase products that you want to use
+import { getFirestore } from 'firebase/firestore';
+
+
 // https://firebase.google.com/docs/web/setup#available-libraries
 
 // Your web app's Firebase configuration
@@ -13,15 +15,15 @@ const firebaseConfig = {
   apiKey: "AIzaSyADRPXBR3_Iv-zCrZhHY1CN27AV8pGO4zc",
   authDomain: "luminella-38832.firebaseapp.com",
   projectId: "luminella-38832",
-  storageBucket: "luminella-38832.appspot.com", // ✅ fixed domain
+  storageBucket: "luminella-38832.firebasestorage.app", // ✅ fixed domain
   messagingSenderId: "351714681056",
   appId: "1:351714681056:web:c9bdb4aa32360eaa74f085",
   measurementId: "G-3LG5925TD9"
 };
 
-// ✅ Initialize Firebase
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-
-// ✅ Export Auth instance
 const auth = getAuth(app);
-export { auth };
+const db = getFirestore(app);
+
+export { auth, db };

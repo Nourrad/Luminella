@@ -1,20 +1,15 @@
-// ==== luminella/backend/index.js.  ====
+// ==== luminella/backend/index.js ====
 const express = require('express');
 const cors = require('cors');
-// const { Configuration, OpenAIApi } = require('openai');
 const OpenAI = require('openai');
 require('dotenv').config();
 
-const app = express();
-app.use(cors());
+const app = express();         // FIRST: create app
+app.use(cors());               // THEN: use cors
 app.use(express.json());
 
-// const configuration = new Configuration({
-//   apiKey: process.env.OPENAI_API_KEY,
-// });
-// const openai = new OpenAIApi(configuration);
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: 'postgres://Nour@localhost:5432/lumenilla'
 });
 
 app.post('/api/gpt', async (req, res) => {

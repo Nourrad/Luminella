@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import './CircleDayView.css';
+import { auth, db } from '../firebase/firebase';
+
 
 const hours = [
   '6 AM', '7 AM', '8 AM', '9 AM', '10 AM', '11 AM',
