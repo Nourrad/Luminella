@@ -1,5 +1,7 @@
 import React from 'react';
 import Navbar from './Navbar';
+import { auth, db } from '../firebase/firebase';
+
 
 const styles = {
   container: {
