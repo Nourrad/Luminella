@@ -1,5 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { auth, db } from '../firebase/firebase';
+
 
 const styles = {
   navbar: {
@@ -42,7 +44,7 @@ function Navbar() {
   return (
     <nav style={styles.navbar}>
       {[
-        { label: '✨ Homepage', path: '/' },
+        { label: '🕒 Today', path: '/Today' },
         { label: '📅 Calendar', path: '/ProductCalendar' },
         { label: '📚 My Shelf', path: '/shelf' },
         { label: '🔍 Search Products', path: '/search' },

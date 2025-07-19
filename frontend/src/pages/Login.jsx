@@ -1,97 +1,15 @@
-// // src/pages/Login.jsx
-
-// import React, { useState } from 'react';
-// import { useNavigate } from 'react-router-dom';
-// import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
-// import { auth } from '../firebase/firebase';
-
-// const Login = () => {
-//   const navigate = useNavigate();
-//   const [email, setEmail] = useState('');
-//   const [password, setPassword] = useState('');
-//   const [error, setError] = useState('');
-//   const [showReset, setShowReset] = useState(false);
-//   const [resetCodeSent, setResetCodeSent] = useState(false);
-//   const [newPassword, setNewPassword] = useState('');
-//   const [confirmPassword, setConfirmPassword] = useState('');
-
-//   const handleLogin = async (e) => {
-//     e.preventDefault();
-//     try {
-//       await signInWithEmailAndPassword(auth, email, password);
-//       navigate('/home');
-//     } catch (err) {
-//       setError('Invalid email or password.');
-//     }
-//   };
-
-//   const handleReset = async () => {
-//     try {
-//       await sendPasswordResetEmail(auth, email);
-//       setResetCodeSent(true);
-//     } catch (err) {
-//       setError('Failed to send reset email. Make sure your email is correct.');
-//     }
-//   };
-
-//   const renderResetForm = () => (
-//     <div>
-//       <h3>🔐 Forgot Password</h3>
-//       <input
-//         type="email"
-//         placeholder="Enter your email"
-//         value={email}
-//         onChange={(e) => setEmail(e.target.value)}
-//       />
-//       <button onClick={handleReset}>Send Reset Email</button>
-//       {resetCodeSent && <p>✅ A reset link has been sent to your email.</p>}
-//       <button onClick={() => setShowReset(false)}>Back to Login</button>
-//     </div>
-//   );
-
-//   return (
-//     <div style={{ padding: '2rem', maxWidth: '400px', margin: 'auto' }}>
-//       <h2>👋 Welcome Back</h2>
-//       {error && <p style={{ color: 'red' }}>{error}</p>}
-//       {showReset ? (
-//         renderResetForm()
-//       ) : (
-//         <form onSubmit={handleLogin}>
-//           <input
-//             type="email"
-//             placeholder="Email"
-//             value={email}
-//             onChange={(e) => setEmail(e.target.value)}
-//             required
-//           />
-//           <input
-//             type="password"
-//             placeholder="Password"
-//             value={password}
-//             onChange={(e) => setPassword(e.target.value)}
-//             required
-//           />
-//           <button type="submit">Login</button>
-//           <p>
-//             <button type="button" onClick={() => setShowReset(true)}>
-//               Forgot Password?
-//             </button>
-//           </p>
-//         </form>
-//       )}
-//     </div>
-//   );
-// };
-
-// export default Login;
-// src/pages/Login.jsx
 // src/pages/Login.jsx
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '../firebase/firebase';
+import { auth, db } from '../firebase/firebase';
+import { doc, getDoc } from 'firebase/firestore'; 
+
+
 import './Questionnaires.css'; // ✅ Reuse styling from Questionnaire
+
+
 
 const Login = () => {
   const navigate = useNavigate();
@@ -103,13 +21,30 @@ const Login = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setError('');
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      
+      // Save user ID and email to localStorage
+      localStorage.setItem('userId', user.uid);
+      localStorage.setItem('userEmail', user.email);   
+
+      const userDocRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userDocRef);
+      
+      if (userSnap.exists()) {
+        const data = userSnap.data();
+        if (data.name) localStorage.setItem('userName', data.name);
+        if (data.profileImageURL) localStorage.setItem('profileImageURL', data.profileImageURL);
+        if (data.skinType) localStorage.setItem('skinType', data.skinType);
+        if (data.concerns) localStorage.setItem('concerns', JSON.stringify(data.concerns));
+      }
       navigate('/profile');
-    } catch (err) {
-      setError('Invalid email or password.');
-    }
-  };
+      } catch (err) {
+        setError('Invalid Email or Password.');
+      }
+    };
 
   const handleReset = async () => {
     try {
