@@ -165,3 +165,20 @@
 .register-form button:hover {
   background-color: #7e5e63;
 }
+button:hover {
+  background-color: #5a273b !important;
+  color: white !important;
+}
+.product-button:hover {
+  background-color: #f0ede5 !important;
+}
+.close-button:hover {
+  background-color: transparent !important;
+}
+.product-card:hover {
+  background-color: #f0ede5 !important;
+}
+.delete-account-button:hover {
+  background-color: #842222 !important;
+  color: white !important;
+}

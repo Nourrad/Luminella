@@ -28,7 +28,9 @@ const styles = {
 function MyShelf() {
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>🧴 My Skincare Shelf</h2>
+      {/* <h2 style={styles.title}>🧴 My Skincare Shelf</h2> */}
+      <h2 style={{ textAlign: 'center', color: '#5a273b', fontFamily:'cursive', fontSize: '2.5rem', fontWeight: 'bold' }}> My Skincare Shelf 🧴</h2>
+
       <p style={styles.placeholder}>
         Your selected products will appear here soon!
       </p>

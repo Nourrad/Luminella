@@ -64,7 +64,7 @@ const Questionnaire = () => {
     {
       id: 'q4',
       text: 'Do you often feel stressed and tense?',
-      options: ['Yes, everyday', 'Often', 'Rarely', 'I don’t feel stress'],
+      options: ['I don’t feel stress', 'Rarely', 'Often', 'Yes, everyday'],
       description: 'Stress increases oil and may cause acne or eczema.'
     },
     {
@@ -186,6 +186,12 @@ const Questionnaire = () => {
     const { email, password, name, age, gender } = userInfo;
     const concerns = answers['q9'] || [];
 
+    const parsedAge = Number(age);
+    if (!parsedAge || parsedAge < 16) {
+      setRegistrationError(' You must be at least 16 years old to register.');
+      return;
+    }
+
     try {
       // Try to create account
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -221,7 +227,7 @@ const Questionnaire = () => {
           setRegistrationError('❌ Email exists, but password is incorrect.');
         }
       } else {
-        setRegistrationError('❌ Something went wrong. Please try again.');
+        setRegistrationError(' Something went wrong. Please try again.');
       }
     }
   };
@@ -229,14 +235,23 @@ const Questionnaire = () => {
   return (
     <div className="questionnaire">
       <div className="questionnaire-inner">
-        {/* <h2 className="questionnaire-title">About Your Skin . .</h2> */}
-
         {skinType && !showRegistrationForm && (
           <div className="summary-box">
             <h3>Based on your answers, your skin type is:</h3>
             <h2 className="skin-type-result">{skinType}</h2>
             <p className="skin-type-description">{skinTypeDescriptions[skinType]}</p>
-            <button onClick={() => setShowRegistrationForm(true)}>Continue</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+              <button onClick={() => { setAnswers({});
+              setCurrentQuestionIndex(0);
+              setSkinType(null);
+        }}
+        style={{ flex: 1, backgroundColor: '#f0ede5', color: '#5a273b', border: '1px solid #ccc' }}
+        >
+          Retake the Quiz
+        </button>
+        <button onClick={() => setShowRegistrationForm(true)} style={{ flex: 1 }}>
+          Continue</button>
+          </div>
           </div>
         )}
 
