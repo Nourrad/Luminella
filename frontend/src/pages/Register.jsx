@@ -9,7 +9,8 @@ const Register = () => {
   const [formData, setFormData] = useState({
     userName: '',
     userEmail: '',
-    password: ''
+    password: '',
+    age: ''
   });
 
   const [error, setError] = useState('');
@@ -25,31 +26,33 @@ const Register = () => {
     e.preventDefault();
     setError('');
 
-    const { userName, userEmail, password } = formData;
+    const { userName, userEmail, password, age } = formData;
+    const parsedAge = Number(age);
+    if (!parsedAge || parsedAge < 16) {
+      setError('You must be at least 16 years old to register.');
+      return;
+    }
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, userEmail, password);
       const user = userCredential.user;
 
-      // Update Auth profile
       await updateProfile(user, { displayName: userName });
 
-      // Save user data to Firestore under 'users/{user.uid}'
       await setDoc(doc(db, 'users', user.uid), {
         userName,
         userEmail,
+        age: parsedAge,
         skinType: '',
         concerns: [],
         profileImageURL: '',
         createdAt: serverTimestamp()
       });
 
-      // Save to localStorage
       localStorage.setItem('userId', user.uid);
       localStorage.setItem('userEmail', userEmail);
       localStorage.setItem('userName', userName);
 
-      // Navigate
       navigate('/questionnaires');
     } catch (err) {
       console.error("Registration error:", err);
@@ -88,6 +91,17 @@ const Register = () => {
           placeholder="Create Password"
           value={formData.password}
           onChange={handleChange}
+          style={styles.input}
+          required
+        />
+
+        <input
+          type="number"
+          name="age"
+          placeholder="Age"
+          value={formData.age}
+          onChange={handleChange}
+          min="16"
           style={styles.input}
           required
         />

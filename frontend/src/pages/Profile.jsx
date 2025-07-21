@@ -23,7 +23,11 @@ import Navbar from './Navbar';
 import './Questionnaires.css';
 import { auth, db } from '../firebase/firebase';
 import { deleteUser, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
-import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, getDocs, updateDoc, deleteDoc, collection, setDoc, serverTimestamp } from 'firebase/firestore';
+// import { setDoc, serverTimestamp } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+
+
 
 
 
@@ -31,6 +35,7 @@ import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 function Profile() {
   const location = useLocation();
   const navigate = useNavigate();
+  const normalizeConcern = (text) => text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
   const [products, setProducts] = useState([]);
   const [editingName, setEditingName] = useState(false);
   const [profileImage, setProfileImage] = useState(null);
@@ -47,6 +52,15 @@ function Profile() {
   const [userName, setUserName] = useState(localStorage.getItem('userName') || ' Your Name ');
   const [profilePreview, setProfilePreview] = useState(localStorage.getItem('profileImageURL') || null);
   const [skinType, setSkinType] = useState(localStorage.getItem('skinType') || 'unknown');
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [skinTypeProducts, setSkinTypeProducts] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+
+
+
+
   const [userConcerns, setUserConcerns] = useState(() => {
     const stored = localStorage.getItem('concerns');
     return stored ? JSON.parse(stored) : [];
@@ -68,8 +82,52 @@ function Profile() {
     'Texture', 'Uneven tone', 'Dark circles', 'Dryness', 'Oiliness'
   ];
 
+  const fetchSkinTypeProducts = async (skinTypeToUse) => {
+  try {
+    const productsRef = collection(db, 'products');
+    const snapshot = await getDocs(productsRef);
+    const allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    const matched = allProducts.filter(p =>
+      p.suitableSkinTypes?.includes(skinTypeToUse.toLowerCase())
+    );
+
+    const limited = matched.slice(0, 10);
+    setSkinTypeProducts(limited);
+  } catch (err) {
+    console.error('Error fetching products by skin type:', err);
+  }
+};
+
+const handleAddToShelf = async () => {
+  if (!userId || !selectedProduct) return;
+
+  try {
+    const shelfRef = doc(db, 'users', userId, 'shelf', selectedProduct.id);
+    await setDoc(shelfRef, {
+      productId: selectedProduct.id,
+      productName: selectedProduct.productName,
+      image_url: selectedProduct.image_url,
+      category: selectedProduct.category,
+      suitableSkinTypes: selectedProduct.suitableSkinTypes,
+      usageTime: selectedProduct.usageTime,
+      frequencyPerWeek: selectedProduct.frequencyPerWeek,
+      addedAt: serverTimestamp()
+    });
+
+    setShowSuccessMessage(true);
+    setTimeout(() => setShowSuccessMessage(false), 3000);
+    setShowProductModal(false);
+  } catch (err) {
+    console.error('Error adding to shelf:', err);
+  }
+};
+
+
+
   useEffect(() => {
-    const fetchUserProfile = async () => {
+
+    const fetchUserProfileAndProducts = async () => {
       if (!userId){
         setLoading(false); // <== prevent infinite loading
         return;
@@ -80,29 +138,50 @@ function Profile() {
 
         if (userSnap.exists()) {
           const data = userSnap.data();
-          setUserName(data.userName || 'Your Name'); //match Firebase
-          localStorage.setItem('userName', data.userName || 'Your Name');
+          const concernsFromDB = data.concerns || [];
+
+          setUserName(data.userName || 'Your Name');
           setProfilePreview(data.profileImageURL || null);
-
           setSkinType(data.skinType || 'unknown');
-          localStorage.setItem('skinType', data.skinType || 'unknown');
-
-          setUserConcerns(data.concerns || []);
-          localStorage.setItem('concerns', JSON.stringify(data.concerns || []));
-
+          await fetchSkinTypeProducts(data.skinType || 'unknown');
+          setUserConcerns(concernsFromDB);
           setUserEmail(data.userEmail || 'example@email.com');
-          // Store email again just in case
-          localStorage.setItem('userEmail', data.userEmail || '');
-          }
-        } catch (err) {
-          console.error('Failed to fetch user profile:', err);
-        } finally {
-        setLoading(false); //  Stop loading once done
-      }
-    };
 
-    fetchUserProfile();
-  }, [userId]);
+
+          localStorage.setItem('userName', data.userName || 'Your Name');
+          localStorage.setItem('profileImageURL', data.profileImageURL || '');
+          localStorage.setItem('skinType', data.skinType || 'unknown');
+          localStorage.setItem('concerns', JSON.stringify(concernsFromDB));
+          localStorage.setItem('userEmail', data.userEmail || '');
+
+          //Correct filtering based on "possibleConcerns"
+          const productsRef = collection(db, 'products');
+          const snapshot = await getDocs(productsRef);
+          const allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+          console.log("🧪 Normalized User Concerns:", concernsFromDB.map(normalizeConcern)); //zzz
+          allProducts.forEach(p => {
+            console.log(`📦 ${p.productName}:`, p.possibleConcerns);
+
+          });
+          const normalizedConcerns = concernsFromDB.map(normalizeConcern);
+          const filtered = allProducts.filter(product =>
+            product.possibleConcerns?.some(concern =>
+              normalizedConcerns.includes(concern)
+            )
+          );
+          setProducts(filtered);
+        }
+        } catch (err) {
+          console.error('Error fetching profile or products:', err);
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        fetchUserProfileAndProducts();
+        }, [userId]);
+  
 
 if (loading) {
   return (
@@ -125,27 +204,40 @@ if (loading) {
 }
 
     
-  const handleImageChange = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const previewUrl = URL.createObjectURL(file);
-      setProfileImage(file);
-      setProfilePreview(previewUrl);
-      localStorage.setItem('profileImageURL', previewUrl);
+const handleImageChange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onloadend = () => {
+    const base64String = reader.result;
+    setProfilePreview(base64String);
+    localStorage.setItem('profileImageURL', base64String);
+
+    if (userId) {
+      const userDocRef = doc(db, 'users', userId);
+      updateDoc(userDocRef, { profileImageURL: base64String }).catch(console.error);
+    }
+  };
+
+  reader.readAsDataURL(file);
+};
+
+      // const previewUrl = URL.createObjectURL(file);
+      // setProfileImage(file);
+      // setProfilePreview(previewUrl);
+      // localStorage.setItem('profileImageURL', previewUrl);
 
 
       // save to Firestore
-      if (userId) {
-        try {
-          const userDocRef = doc(db, 'users', userId);
-          await updateDoc(userDocRef, { profileImageURL: previewUrl });
-          localStorage.setItem('profileImageURL', previewUrl); 
-        } catch (err) {
-          console.error('Error saving profile image:', err);
-          }
-        }
-      }
-    };
+      // if (userId) {
+      //   try {
+      //     const userDocRef = doc(db, 'users', userId);
+      //     await updateDoc(userDocRef, { profileImageURL: previewUrl });
+      //     localStorage.setItem('profileImageURL', previewUrl); 
+      //   } catch (err) {
+      //     console.error('Error saving profile image:', err);
+      //     }
 
     const handleFinalDelete = async () => {
       setDeleteError('')
@@ -161,31 +253,43 @@ if (loading) {
         await deleteUser(user); // Delete from Firebase Auth
 
         localStorage.clear();
-        navigate('/Homepage'); // Redirect after deletion
+        navigate('/'); // Redirect after deletion
         } catch (err) {
           console.error('Delete error:', err);
           setDeleteError('Wrong password. Please try again.');
         }
       };
 
-  const toggleConcern = async (concern) => {
-    const updated = userConcerns.includes(concern)
+const toggleConcern = async (concern) => {
+  const updated = userConcerns.includes(concern)
     ? userConcerns.filter(c => c !== concern)
     : [...userConcerns, concern];
 
-    setUserConcerns(updated);
-    localStorage.setItem('concerns', JSON.stringify(updated));
+  const normalizedConcerns = updated.map(normalizeConcern);
+  setUserConcerns(normalizedConcerns);
+  localStorage.setItem('concerns', JSON.stringify(normalizedConcerns));
 
-
-    if (userId) {
-      try {
+  if (userId) {
+    try {
       const userDocRef = doc(db, 'users', userId);
-      await updateDoc(userDocRef, { concerns: updated });
-      } catch (err) {
-        console.error('Failed to update concerns:', err);
-        }
-      }
-    };
+      await updateDoc(userDocRef, { concerns: normalizedConcerns });
+
+      const productsRef = collection(db, 'products');
+      const snapshot = await getDocs(productsRef);
+      const allProducts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      const filtered = allProducts.filter(product =>
+        product.possibleConcerns?.some(concern =>
+          normalizedConcerns.includes(concern)
+        )
+      );
+
+      setProducts(filtered);
+    } catch (err) {
+      console.error('Failed to update concerns or fetch products:', err);
+    }
+  }
+};
       
   const handleLogout = () => {
     localStorage.clear();
@@ -193,90 +297,143 @@ if (loading) {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', backgroundColor: '#f0ede5', fontFamily: 'sans-serif' }}>
+    <div style={{ display: 'flex', height: '100vh', backgroundColor: '#f0ede5', fontFamily: 'sans-Segoe UI, sans-serif' }}>
       <Navbar />
 
       {/* Left Side Summary */}
-      <div style={{ flex: 1, padding: '2rem', overflowY: 'auto' }}>
-        <div style={{ 
-          backgroundColor: '#5a273b',
-          width: '110%',
-          padding: '2rem 1rem',
-          marginLeft: '-2rem',
-          marginTop: '-2rem',
-          textAlign: 'center',
-          color: '#fff'
-          }}>
+      <div style={{ flex: 1, padding: '2rem', paddingBottom: '10rem', overflowY: 'auto' }}>
 
-            <div
-            style={{
-              width: '120px', height: '120px', borderRadius: '50%', border: '4px solid white', 
-              overflow: 'hidden', marginBottom: '1rem', cursor: 'pointer', display: 'inline-block'
-            }}
-            onClick={() => setShowImageModal(true)}
-            >
-            <img
-            src={profilePreview || '/default-avatar.png'}
-            alt="Profile"
-            style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '50%', cursor: 'pointer' }}
-            onClick={() => setShowImageModal(true)}
-            />
-            </div>
+<div style={{ 
+  backgroundColor: '#f0ede5',
+  width: '100%',
+  padding: '2rem 0',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '2rem',
+  color: '#5a273b'
+}}>
+  <div
+    style={{
+      width: '160px',
+      height: '160px',
+      borderRadius: '12px',
+      border: '5px solid #7e5e63',
+      overflow: 'hidden',
+      cursor: 'pointer',
+      flexShrink: 0
+    }}
+    onClick={() => setShowImageModal(true)}
+  >
+    <img
+      src={profilePreview || '/default-avatar.png'}
+      alt="Profile"
+      style={{
+        width: '160px',
+        height: '160px',
+        objectFit: 'cover',
+        borderRadius: '0',
+        cursor: 'pointer'
+      }}
+    />
+  </div>
 
-            {editingName ? (
-            <div style={{ marginTop: '1rem' }}>
-              <input
-                type="text"
-                value={userName}
-                onChange={(e) => setUserName(e.target.value)}
-                style={{ padding: '0.5rem' }}
-              />
-              <button onClick={async () => { setEditingName(false);
-              if (userId) {
-                try {
-                  await updateDoc(doc(db, 'users', userId), {
-                    userName: userName.trim()
-                    });
-                    // localStorage.setItem('userName', userName);
-                    setUserName(userName.trim());
-                    localStorage.setItem('userName', userName.trim());
+  {editingName ? (
+    <div style={{ flexGrow: 1 }}>
+      <input
+        type="text"
+        value={userName}
+        onChange={(e) => setUserName(e.target.value)}
+        style={{ padding: '0.5rem', fontSize: '1.5rem', fontFamily: 'Caveat, cursive' }}
+      />
+      <button
+        onClick={async () => {
+          setEditingName(false);
+          if (userId) {
+            try {
+              await updateDoc(doc(db, 'users', userId), {
+                userName: userName.trim()
+              });
+              setUserName(userName.trim());
+              localStorage.setItem('userName', userName.trim());
+            } catch (err) {
+              console.error('Error updating name:', err);
+            }
+          }
+        }}
+        style={editBtnStyle}
+      >
+        Save
+      </button>
+    </div>
+  ) : (
+    <h2 style={{
+      fontFamily: 'Caveat, cursive',
+      fontSize: '2.2rem',
+      margin: 0
+    }}>
+      {userName}
+    </h2>
+  )}
+</div>
 
-                    } catch (err) {
-                      console.error('Error updating name:', err);
-                    }
-                  }
-                }}
-                style={editBtnStyle}
-                >
-                  Save
-                </button>
-            </div>
-          ) : (
-            <h2 style={{ margin: '1rem 0' }}>{userName}</h2>
-          )}
-        </div>
-
-        <h3 style={{ fontWeight: 'normal' }}>
+        <h3 style={{ fontSize: '1.3rem', fontWeight: 'normal' }}>
           Your skin type is: <strong style={{ textTransform: 'capitalize' }}>{skinType}</strong>
           </h3>
-        <p><strong>{skinTypeDescriptions[skinType]}</strong></p>
-        <h3 style={{ marginTop: '2rem', fontWeight: 'normal' }}>Your skin concerns:</h3>
-        <ul>{userConcerns.map(c => <li key={c}><strong>{c}</strong></li>)}</ul>
+          <p style={{ fontSize: '1.2rem', lineHeight: '1.5' }}>
+        <strong>{skinTypeDescriptions[skinType]}</strong>
+        </p>
+        <h3 style={{ marginTop: '2rem', fontSize: '1.3rem', fontWeight: 'normal' }}>Your skin concerns:</h3>
+        <ul style={{ fontSize: '1.2rem', paddingLeft: '1.2rem' }}>
+          {userConcerns.map(c => <li key={c}><strong>{c}</strong></li>)}
+          </ul>
 
-        <h3 style={{ marginTop: '2rem', fontWeight: 'normal' }}>Recommended Products:</h3>
-        {products.map((p) => (
-          <div key={p.id} style={{ marginBottom: '1rem', padding: '1rem', border: '1px solid #ccc', borderRadius: '8px' }}>
-            <strong>{p.name}</strong> ({p.type})<br />
-            <img src={`/images/${p.image_url}`} alt={p.name} width="100" style={{ borderRadius: '8px' }} />
-          </div>
-        ))}
-      </div>
+        <h3 style={{ marginTop: '2rem', fontSize: '1.2rem', fontWeight: 'normal' }}>
+          Editor’s Picks for Your Skin Type:
+          </h3>
+        <div style={{ backgroundColor: '#f0ede5', borderRadius: '12px', padding: '1rem', overflowX: 'auto',
+        whiteSpace: 'nowrap', border: '2px solid #f0ede5', marginTop: '1rem', display: 'flex', gap: '1rem'
+         }}>
+          {skinTypeProducts.length > 0 ? (
+            skinTypeProducts.map(p => (
+              <button
+              key={p.id}
+              className="product-button"
+              onClick={() => {
+                setSelectedProduct(p);
+                setShowProductModal(true);
+              }}
+                
+              style={{
+                display: 'inline-flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', width: '220px', height: '260px',
+                borderRadius: '16px', border: '2px solid #5a273b', backgroundColor: '#fff', overflow: 'hidden', cursor: 'pointer', flexShrink: 0
+              }}>
+                {p.image_url && (
+                  <img
+                  src={`/images/${p.image_url}`}
+                  alt={p.productName}
+                  style={{
+                    height: '160px', width: '100%', objectFit: 'cover', borderBottom: '1px solid #ccc'
+                  }}
+                  />
+                )}
+                <span style={{ padding: '0.8rem', fontWeight: 'bold', fontSize: '1rem', color: '#5a273b', textAlign: 'center', overflowWrap: 'break-word',
+                  wordWrap: 'break-word', whiteSpace: 'normal', lineHeight: '1.2', maxHeight: '3.6em', overflow: 'hidden'
+
+                 }}>
+                  {p.productName}
+                  </span>    
+                </button>
+                ))
+              ) : (
+              <p style={{ fontStyle: 'italic', padding: '1rem' }}>No products found for your skin type.</p>
+            )}
+            </div>
+            </div>
 
       {/* Right Panel with Scrollable Content */}
       <div style={{
         width: '400px',
         backgroundColor: '#7e5e63', 
-        // hover: {backgroundColor: '#5a273b'},
         color: 'white',
         display: 'flex',
         flexDirection: 'column',
@@ -339,7 +496,9 @@ if (loading) {
           }}
           >Edit Skin Concerns</button>
 
-          <button onClick={() => setShowDeleteConfirm(true)} 
+          <button 
+          className="delete-account-button"
+          onClick={() => setShowDeleteConfirm(true)} 
           style={{ ...dangerBtnStyle, marginTop: '1rem' }}
           onMouseOver={e => {
             e.currentTarget.style.backgroundColor = 'darkred';
@@ -352,7 +511,7 @@ if (loading) {
           >Delete Your Data and Account</button>
 
 
-          <button onClick={handleLogout} style={{ ...dangerBtnStyle, marginTop: '1rem' }}
+          <button onClick={() => setShowLogoutConfirm(true)} style={{ ...dangerBtnStyle, marginTop: '1rem' }}
           onMouseOver={e => {
             e.currentTarget.style.backgroundColor = '#5a273b';
             e.currentTarget.style.color = 'white';
@@ -367,6 +526,69 @@ if (loading) {
       </div>
 
       {/* MODALS */}
+      {showProductModal && selectedProduct && (
+  <div style={{
+    position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+    backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
+    alignItems: 'center', justifyContent: 'center', zIndex: 999
+  }}>
+    <div style={{
+      backgroundColor: '#f0ede5', borderRadius: '16px', padding: '2rem',
+      width: '600px', display: 'flex', gap: '1.5rem', alignItems: 'flex-start', position: 'relative'
+    }}>
+      <button
+        onClick={() => setShowProductModal(false)}
+        className="close-button"
+        style={{
+          position: 'absolute', top: '10px', right: '15px', background: 'none',
+          border: 'none', fontSize: '1.5rem', fontWeight: 'bold', cursor: 'pointer'
+        }}
+      >✖️</button>
+      <img
+        src={`/images/${selectedProduct.image_url}`}
+        alt={selectedProduct.productName}
+        style={{ width: '200px', height: '200px', objectFit: 'cover', borderRadius: '12px' }}
+      />
+      <div style={{ flex: 1 }}>
+        <h2 style={{ fontFamily: 'Segoe UI, sans-serif', fontSize: '1.4rem', color: '#5a273b' }}>
+          {selectedProduct.productName}
+        </h2>
+        <p style={{ marginTop: '1rem', fontSize: '1rem' }}>
+          <strong>Suitable Skin Types:</strong>{' '}
+          {selectedProduct.suitableSkinTypes?.join(', ') || 'Not specified'}
+        </p>
+        <p style={{ marginTop: '0.5rem', fontSize: '1rem' }}>
+          {selectedProduct.description}
+        </p>
+        <p style={{ marginTop: '0.5rem', fontSize: '1rem' }}>
+          <strong>Usage time:</strong>{' '}
+          {Array.isArray(selectedProduct.usageTime)
+            ? selectedProduct.usageTime.join(', ')
+            : selectedProduct.usageTime || 'Not specified'}
+        </p>
+        <p style={{ marginTop: '0.5rem', fontSize: '1rem' }}>
+          <strong>Times per week:</strong>{' '}
+          {selectedProduct.frequencyPerWeek || 'Not specified'}
+        </p>
+        <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+          <button onClick={() => setShowProductModal(false)} style={{
+            padding: '0.7rem 1.5rem', backgroundColor: '#5a273b', color: '#fff', border: 'none',
+            borderRadius: '6px', cursor: 'pointer'
+          }}>Close</button>
+          <button
+          onClick={handleAddToShelf}
+          style={{
+            padding: '0.7rem 1.5rem', backgroundColor: '#5a273b', color: '#fff',
+            border: 'none', borderRadius: '6px', cursor: 'pointer'
+          }}>
+            Add to Shelf
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
       {showResetModal && (
         <Modal title="Reset Password" onClose={() => setShowResetModal(false)}>
           <p>You’ll be redirected to the reset page.</p>
@@ -383,23 +605,25 @@ if (loading) {
           <div style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '0.5rem' }}>
             {Object.entries(skinTypeDescriptions).map(([type, desc]) => {
               const isSelected = type === skinType;
+
+
               return (
                 <button
                   key={type}
                   onClick={async () => {
-                    setSkinType(type);// updates local state so UI reflects the change immediately
+                    setSkinType(type); // update local state
                     if (userId) {
                       try {
                         await updateDoc(doc(db, 'users', userId), {
                           skinType: type
                         });
                         localStorage.setItem('skinType', type);
+                        await fetchSkinTypeProducts(type); // 🔥 re-fetch updated recommendations
                         } catch (err) {
                           console.error('Failed to save skin type:', err);
-                        }
-                      }
-                      setShowSkinTypeModal(false);
-                  }}
+                        }}
+                        setShowSkinTypeModal(false);
+                      }}
                   style={{
                     backgroundColor: isSelected ? '#5a273b' : '#7e5e63',
                     color: '#eee',
@@ -429,12 +653,34 @@ if (loading) {
           </div>
         </Modal>
       )}
+
+      {showSuccessMessage && (
+  <div style={{
+    position: 'fixed',
+    top: '2rem',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    backgroundColor: '#5a273b',
+    color: '#fff',
+    padding: '1rem 2rem',
+    borderRadius: '10px',
+    boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+    fontSize: '1rem',
+    zIndex: 9999,
+    fontWeight: 'bold',
+    animation: 'fadeInOut 3s ease-in-out'
+  }}>
+    ✅ Added to your shelf!
+  </div>
+)}
+
       {showConcernsModal && (
         <Modal title="Edit Skin Concerns" onClose={() => setShowConcernsModal(false)}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
             {possibleConcerns.map((concern) => {
               const isSelected = userConcerns.includes(concern);
               return (
+                
                 <button
                   key={concern}
                   onClick={() => toggleConcern(concern)}
@@ -476,8 +722,6 @@ if (loading) {
                 width: '100%', fontFamily: 'sans-serif', border: '1px solid #ccc',
                 padding: '0.75rem', marginBottom: '1rem', borderRadius: '6px'
               }}>
-
-
                 <option value="">Select a reason</option>
                 <option>No longer using the service</option>
                 <option>Too much notifications or emails</option>
@@ -492,7 +736,7 @@ if (loading) {
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
                 style={{
-                  width: '100%', fontFamily: 'sans-serif', border: '1px solid #ccc',
+                  width: '94%', fontFamily: 'sans-serif', border: '1px solid #ccc',
                   padding: '0.75rem', marginBottom: '1rem', borderRadius: '6px'
                 }}
                 />
@@ -502,6 +746,20 @@ if (loading) {
                   <button onClick={() => setShowDeleteReason(false)} style={modalBtnStyle}>Cancel</button>
                   <button onClick={handleFinalDelete} style={modalBtnStyle}>Confirm Delete</button>
                   </div>
+                  </Modal>
+                )}
+                {showLogoutConfirm && (
+                  <Modal title="Are you sure you want to log out?" onClose={() => setShowLogoutConfirm(false)} bg="#f0ede5">
+                    <p>This will log you out of your session.</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}>
+                      <button onClick={() => setShowLogoutConfirm(false)} style={modalBtnStyle}>Stay in browser</button>
+                      <button onClick={() => {
+                        localStorage.clear();
+                        navigate('/login');
+                      }}
+                      style={modalBtnStyle}
+                      >Log Out</button>
+                    </div>
                   </Modal>
                 )}
           </div>
@@ -520,6 +778,7 @@ const Modal = ({ title, onClose, children, bg = '#f0ede5' }) => (
     }}>
       <button
         onClick={onClose}
+        className="close-button"
         style={{
           position: 'absolute',
           top: '10px',
@@ -546,8 +805,8 @@ const editBtnStyle = {
   width: '100%',
   padding: '0.8rem',
   marginTop: '1rem',
-  backgroundColor: '#f0ede5',
-  color: 'black',
+  backgroundColor: '#5a273b',
+  color: '#fff',
   border: '1px solid #fff',
   borderRadius: '6px',
   cursor: 'pointer',

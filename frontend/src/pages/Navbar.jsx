@@ -1,7 +1,6 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { auth, db } from '../firebase/firebase';
-
 
 const styles = {
   navbar: {
@@ -25,44 +24,50 @@ const styles = {
     fontWeight: 600,
     fontSize: '1.2rem',
     cursor: 'pointer',
-    backgroundColor: '#fff',
     transition: 'background-color 0.3s ease',
   },
 };
 
 function Navbar() {
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const handleHover = (e, hover) => {
+  const buttons = [
+    { label: '🕒 Today', path: '/Today' },
+    { label: '📅 Calendar', path: '/ProductCalendar' },
+    { label: '📚 My Shelf', path: '/shelf' },
+    { label: '🔍 Browse Products', path: '/search' },
+    { label: '👤 Profile', path: '/profile' },
+  ];
+
+  const handleHover = (e, hover, isActive) => {
+    if (isActive) return; // keep active color
     e.target.style.backgroundColor = hover ? '#7e5e63' : '#fff';
     e.target.style.color = hover ? '#fff' : '#000';
-    e.target.style.boxShadow = hover
-      ? '0 8px 16px rgba(0, 0, 0, 0.15)'
-      : 'none';
   };
 
   return (
     <nav style={styles.navbar}>
-      {[
-        { label: '🕒 Today', path: '/Today' },
-        { label: '📅 Calendar', path: '/ProductCalendar' },
-        { label: '📚 My Shelf', path: '/shelf' },
-        { label: '🔍 Search Products', path: '/search' },
-        { label: '👤 Profile', path: '/profile' },
-      ].map((btn, index, arr) => (
-        <div
-          key={btn.label}
-          style={{
-            ...styles.navButton,
-            borderRight: index === arr.length - 1 ? 'none' : styles.navButton.borderRight,
-          }}
-          onClick={() => navigate(btn.path)}
-          onMouseEnter={(e) => handleHover(e, true)}
-          onMouseLeave={(e) => handleHover(e, false)}
-        >
-          {btn.label}
-        </div>
-      ))}
+      {buttons.map((btn, index) => {
+        const isActive = location.pathname === btn.path;
+
+        return (
+          <div
+            key={btn.label}
+            style={{
+              ...styles.navButton,
+              borderRight: index === buttons.length - 1 ? 'none' : styles.navButton.borderRight,
+              backgroundColor: isActive ? '#5a273b' : '#fff',
+              color: isActive ? '#fff' : '#000',
+            }}
+            onClick={() => navigate(btn.path)}
+            onMouseEnter={(e) => handleHover(e, true, isActive)}
+            onMouseLeave={(e) => handleHover(e, false, isActive)}
+          >
+            {btn.label}
+          </div>
+        );
+      })}
     </nav>
   );
 }
