@@ -3,6 +3,7 @@ import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';  // adjust if needed
 import { getAuth } from 'firebase/auth';
 
+
 export const saveUserProfile = async ({ name, email, skinType, concerns, profileImageURL }) => {
   const auth = getAuth();
   const user = auth.currentUser;
@@ -12,6 +13,7 @@ export const saveUserProfile = async ({ name, email, skinType, concerns, profile
   await setDoc(userRef, {
     name,
     email,
+    password,
     skinType,
     concerns,
     profileImageURL: profileImageURL || ''

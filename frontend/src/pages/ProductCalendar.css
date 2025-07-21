@@ -47,3 +47,25 @@
   color: white !important;
   transform: none !important;
 }
+.profile-button.danger {
+  background-color: #7e5e63;
+  color: white;
+}
+
+.profile-button.danger:hover {
+  background-color: darkred;
+  color: white;
+}
+.calendar-product-button {
+  transition: background-color 0.2s ease;
+}
+
+.calendar-product-button:hover {
+  background-color: transparent !important;
+}
+.product-close-button:hover,
+.product-close-button:focus {
+  background: none !important;
+  outline: none !important;
+  color: #5a273b !important;
+}
