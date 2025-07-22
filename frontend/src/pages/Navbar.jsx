@@ -33,13 +33,12 @@ function Navbar() {
   const location = useLocation();
 
   const buttons = [
-    { label: '🕒 Today', path: '/Today' },
-    { label: '📅 Calendar', path: '/ProductCalendar' },
-    { label: '📚 My Shelf', path: '/shelf' },
-    { label: '🔍 Browse Products', path: '/search' },
-    { label: '👤 Profile', path: '/profile' },
+    { label: ' Today', path: '/Today' },
+    { label: ' Calendar', path: '/ProductCalendar' },
+    { label: ' Browse Products', path: '/search' },
+    { label: ' Items List', path: '/shelf' },
+    { label: ' Profile', path: '/profile' },
   ];
-
   const handleHover = (e, hover, isActive) => {
     if (isActive) return; // keep active color
     e.target.style.backgroundColor = hover ? '#7e5e63' : '#fff';

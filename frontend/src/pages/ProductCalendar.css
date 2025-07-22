@@ -69,3 +69,22 @@
   outline: none !important;
   color: #5a273b !important;
 }
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateY(20px); }
+  10% { opacity: 1; transform: translateY(0); }
+  90% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(20px); }
+}
+
+::-webkit-scrollbar {
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f0ede5;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #5a273b;
+  border-radius: 6px;
+}

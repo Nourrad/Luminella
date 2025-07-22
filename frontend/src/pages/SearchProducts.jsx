@@ -57,6 +57,8 @@ function SearchProducts() {
   const [selectedProduct, setSelectedProduct] = useState(null); // new: to store product clicked
   const [showModal, setShowModal] = useState(false); // new: to control modal visibility
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showListSuccessMessage, setShowListSuccessMessage] = useState(false);
+
 
 
 
@@ -86,6 +88,34 @@ function SearchProducts() {
     setShowModal(false);
   } catch (err) {
     console.error('Error adding to shelf:', err);
+    alert('Something went wrong.');
+  }
+};
+const handleAddToList = async () => {
+  const userId = localStorage.getItem('userId');
+  if (!userId || !selectedProduct) return;
+
+  const listRef = doc(db, 'users', userId, 'List', selectedProduct.id);
+
+  try {
+    await setDoc(listRef, {
+      productId: selectedProduct.id,
+      productName: selectedProduct.productName,
+      image_url: selectedProduct.image_url,
+      category: selectedProduct.category,
+      suitableSkinTypes: selectedProduct.suitableSkinTypes,
+      usageTime: selectedProduct.usageTime,
+      frequencyPerWeek: selectedProduct.frequencyPerWeek,
+      possibleConcerns: selectedProduct.possibleConcerns,
+      use: selectedProduct.use,
+      createdAt: serverTimestamp()
+    });
+
+    setShowListSuccessMessage(true);
+    setTimeout(() => setShowListSuccessMessage(false), 3000);
+    setShowModal(false);
+  } catch (err) {
+    console.error('Error adding to list:', err);
     alert('Something went wrong.');
   }
 };
@@ -216,6 +246,26 @@ function SearchProducts() {
           Skin Concerns
          </button>
          </div>
+         {showListSuccessMessage && (
+  <div style={{
+  position: 'fixed',
+  top: '2rem',
+  left: '40%',
+  transform: 'translateX(-50%)',
+  backgroundColor: '#5a273b',
+  color: '#fff',
+  padding: '1rem 2rem',
+  borderRadius: '10px',
+  boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+  fontSize: '1rem',
+  zIndex: 9999,
+  fontWeight: 'bold',
+  animation: 'fadeInOut 3s ease-in-out'
+  }}>
+    ✅ Added to your list!
+  </div>
+)}
+
          {showConcernsFilter && (
           <>
           <h2 style={{ textAlign: 'center', marginTop: '2rem' }}>Select a Concern:</h2>
@@ -305,13 +355,14 @@ function SearchProducts() {
         }}>
           <div style={{
             backgroundColor: '#f0ede5', borderRadius: '16px', padding: '2rem',
-            width: '600px', display: 'flex', gap: '1.5rem', alignItems: 'flex-start', position: 'relative'
+            width: '700px', display: 'flex', gap: '1.5rem', alignItems: 'flex-start', position: 'relative'
           }}>
             <button
             onClick={() => setShowModal(false)}
+            className="close-button"
             style={{
-              position: 'absolute', top: '10px', right: '15px', background: 'none',
-             border: 'none', fontSize: '1.5rem', fontWeight: 'bold', cursor: 'pointer'
+              position: 'absolute', top: '10px', right: '15px', backgroundColor: 'transparent',
+             border: 'none', fontSize: '1.5rem', fontWeight: 'bold', cursor: 'pointer',color: '#000'
             }}
             >✖️</button>
             <img
@@ -343,17 +394,65 @@ function SearchProducts() {
               <strong>Times per week:</strong>{' '}
               {selectedProduct.frequencyPerWeek || 'Not specified'}
             </p>
-            <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-              <button onClick={() => setShowModal(false)} style={{
-                padding: '0.7rem 1.5rem', backgroundColor: '#5a273b', color: '#fff',border: 'none',
-                borderRadius: '6px',cursor: 'pointer'
-                }}>Close</button>
+<div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+  {/* Add to Shelf on the left */}
+  <button
+    onClick={handleAddToShelf}
+    style={{
+      padding: '0.7rem 1.5rem',
+      backgroundColor: '#fff',
+      color: '#5a273b',
+      border: '2px solid #5a273b',
+      borderRadius: '6px',
+      cursor: 'pointer',
+      fontWeight: 'bold'
+    }}
+    onMouseOver={e => {
+      e.target.style.backgroundColor = '#5a273b';
+      e.target.style.color = '#fff';
+    }}
+    onMouseOut={e => {
+      e.target.style.backgroundColor = '#fff';
+      e.target.style.color = '#5a273b';
+    }}
+  >
+    Add to Shelf
+  </button>
 
-                <button onClick={handleAddToShelf}style={{ padding: '0.7rem 1.5rem', backgroundColor: '#5a273b', color: '#fff',
-                border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
-                  Add to Shelf
-                </button>
-                </div>
+  {/* Close and Add to Fav on the right */}
+  <div style={{ display: 'flex', gap: '1rem' }}>
+    <button
+      onClick={() => setShowModal(false)}
+      style={{
+        padding: '0.7rem 1.5rem',
+        backgroundColor: '#5a273b',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        fontWeight: 'bold'
+      }}
+    >
+      Close
+    </button>
+
+    <button
+    onClick={handleAddToList}
+      style={{
+        padding: '0.7rem 1.5rem',
+        backgroundColor: '#5a273b',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        fontWeight: 'bold'
+      }}
+      // Will add function later
+    >
+      Add to List
+    </button>
+  </div>
+</div>
                 </div>
                 </div>
                   </div>

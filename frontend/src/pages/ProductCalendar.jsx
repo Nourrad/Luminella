@@ -6,16 +6,19 @@ import './ProductCalendar.css';
 import { auth, db } from '../firebase/firebase';
 import Navbar from './Navbar';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { setDoc } from 'firebase/firestore';
+
 
 
 const localizer = momentLocalizer(moment);
 
 
-const ProductSchedulingForm = ({ products, onSchedule, setSelectedProductDetails }) => {
+const ProductSchedulingForm = ({ products, onSchedule, setSelectedProductDetails, scheduledProductIds }) => {
   const [selectedProduct, setSelectedProduct] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
   const [notes, setNotes] = useState('');
   const [hoveredProduct, setHoveredProduct] = useState(null);
+  
 
 
 
@@ -59,27 +62,24 @@ const ProductSchedulingForm = ({ products, onSchedule, setSelectedProductDetails
       onClick={() => setSelectedProductDetails(product)}
       onMouseEnter={() => setHoveredProduct(product.id)}
       onMouseLeave={() => setHoveredProduct(null)}
-  style={{
-    display: 'inline-flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '220px',
-    height: '260px',
-    borderRadius: '16px',
-    border:
-      selectedProduct === product.id
-        ? '3px solid #5a273b'
-        : '2px solid #5a273b',
-    backgroundColor:
-      hoveredProduct === product.id
-        ? 'transparent'
-        : '#fff',
-    overflow: 'hidden',
-    cursor: 'pointer',
-    flexShrink: 0,
-    transition: 'background-color 0.2s ease'
-  }}
+style={{
+  display: 'inline-flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
+  alignItems: 'center',
+  width: '220px',
+  height: '260px',
+  borderRadius: '16px',
+  border: selectedProduct === product.id
+    ? '3px solid #5a273b'
+    : '2px solid #5a273b',
+  backgroundColor: hoveredProduct === product.id ? 'transparent' : '#fff',
+  overflow: 'hidden',
+  cursor: 'pointer',
+  flexShrink: 0,
+  transition: 'background-color 0.2s ease',
+  opacity: scheduledProductIds.includes(product.id) ? 0.5 : 1, // 👈 HERE
+}}
 >
   {product.image_url && (
     <img
@@ -113,7 +113,7 @@ const ProductSchedulingForm = ({ products, onSchedule, setSelectedProductDetails
   ))}
 </div>
 
-      <label style={{ fontWeight: 'bold', display: 'block', marginTop: '1rem', color: '#5a273b' }}>Schedule Time</label>
+      {/* <label style={{ fontWeight: 'bold', display: 'block', marginTop: '1rem', color: '#5a273b' }}>Schedule Time</label>
       <input
         type="datetime-local"
         value={scheduledTime}
@@ -125,9 +125,9 @@ const ProductSchedulingForm = ({ products, onSchedule, setSelectedProductDetails
           width: '100%',
           marginTop: '0.5rem'
         }}
-      />
+      /> */}
 
-      <label style={{ fontWeight: 'bold', display: 'block', marginTop: '1rem', color: '#5a273b' }}>Notes (optional)</label>
+      {/* <label style={{ fontWeight: 'bold', display: 'block', marginTop: '1rem', color: '#5a273b' }}>Notes (optional)</label>
       <textarea
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
@@ -139,9 +139,9 @@ const ProductSchedulingForm = ({ products, onSchedule, setSelectedProductDetails
           height: '80px',
           marginTop: '0.5rem'
         }}
-      />
+      /> */}
 
-      <button onClick={handleSchedule} style={{
+      {/* <button onClick={handleSchedule} style={{
         marginTop: '1.5rem',
         padding: '0.8rem 1.5rem',
         backgroundColor: '#5a273b',
@@ -153,7 +153,7 @@ const ProductSchedulingForm = ({ products, onSchedule, setSelectedProductDetails
         width: '100%'
       }}>
         Add to Calendar
-      </button>
+      </button> */}
     </div>
   );
 };
@@ -164,6 +164,10 @@ const ProductCalendar = () => {
   const [currentView, setCurrentView] = useState('week');
   const [selectedProductDetails, setSelectedProductDetails] = useState(null);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [scheduledProductIds, setScheduledProductIds] = useState([]);
+  const [successMessage, setSuccessMessage] = useState('');
+
+
 
 
   const saveCalendarEntry = async ({ productId, usageTime, notes }) => {
@@ -187,6 +191,7 @@ const ProductCalendar = () => {
       console.error('Save error:', err.message);
     }
   };
+
 
   const deleteCalendarEntry = async (entryId) => {
     try {
@@ -221,6 +226,142 @@ const ProductCalendar = () => {
     console.error('Error removing from shelf:', err);
   }
 };
+
+const handleAutoSchedule = async () => {
+  const user = auth.currentUser;
+  if (!user || !selectedProductDetails || !selectedProductDetails.usageTime || !selectedProductDetails.frequencyPerWeek) return;
+
+  const product = selectedProductDetails;
+  const userId = user.uid;
+  const frequency = product.frequencyPerWeek.toLowerCase();
+  const usageTime = Array.isArray(product.usageTime) ? product.usageTime : [product.usageTime];
+  const now = new Date();
+  let daysToSchedule = [];
+
+  if (frequency.includes('every day')) {
+    daysToSchedule = [...Array(7)].map((_, i) => i);
+  } else {
+    const count = Math.floor(Math.random() * 3) + 3;
+    const pool = [...Array(7)].map((_, i) => i);
+    while (daysToSchedule.length < count) {
+      const rand = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+      daysToSchedule.push(rand);
+    }
+  }
+
+  const createDatetime = (baseDate, timeLabel) => {
+    const date = new Date(baseDate);
+    if (timeLabel.toLowerCase().includes('morning')) {
+      date.setHours(9 + Math.floor(Math.random() * 2));
+    } else {
+      date.setHours(21 + Math.floor(Math.random() * 2));
+    }
+    date.setMinutes(0, 0, 0);
+    return date;
+  };
+
+  const scheduledTimestamps = [];
+
+  for (let i = 0; i < daysToSchedule.length; i++) {
+    const offset = daysToSchedule[i];
+    const scheduledDate = new Date();
+    scheduledDate.setDate(now.getDate() + offset);
+    const label = usageTime[i % usageTime.length];
+    const dateTime = createDatetime(scheduledDate, label);
+    const iso = dateTime.toISOString();
+
+    scheduledTimestamps.push(iso);
+
+    await saveCalendarEntry({
+      productId: product.id,
+      usageTime: iso,
+      notes: '[Auto] Scheduled by Luminella',
+    });
+  }
+
+  // 🟡 Save product metadata to user's "schedule" collection
+  try {
+    await setDoc(
+      doc(db, 'users', userId, 'schedule', product.id),
+      {
+        ...product,
+        scheduledTimes: scheduledTimestamps,
+        scheduledBy: 'auto',
+        scheduledAt: new Date().toISOString(),
+      }
+    );
+  } catch (err) {
+    console.error('Error saving to schedule collection:', err);
+  }
+
+  await fetchEvents();
+  await fetchScheduledProducts();
+  setSuccessMessage('✅ [Auto] Scheduled by Luminella!');
+  setTimeout(() => setSuccessMessage(''), 3000);
+  setSelectedProductDetails(null);
+};
+
+
+const handleRemoveFromSchedule = async () => {
+  const user = auth.currentUser;
+  if (!user || !selectedProductDetails) return;
+
+  const productId = selectedProductDetails.id;
+
+  try {
+    // 1. Remove from Firestore
+    await deleteDoc(doc(db, 'users', user.uid, 'schedule', productId));
+
+    // 2. Remove calendar entries via API
+    const token = await user.getIdToken();
+    const res = await fetch(`http://localhost:5050/api/schedule/${user.uid}/product/${productId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) throw new Error('Failed to delete calendar entries');
+
+    // 3. Refresh calendar and scheduled list BEFORE closing the modal
+    await fetchEvents(); // Refresh calendar
+    await fetchScheduledProducts(); // Refresh scheduledProductIds list
+
+    // 4. Clear modal and show message
+    setSelectedProductDetails(null);
+    setSuccessMessage('🗑️ Cleared from schedule!');
+    setTimeout(() => {
+      setSuccessMessage('');
+      setSelectedProductDetails(null); // close modal after message fades out
+      }, 3000);
+      
+  await fetchEvents();
+  await fetchScheduledProducts();
+  setSuccessMessage('✅ [Auto] Scheduled by Luminella!');
+  setTimeout(() => setSuccessMessage(''), 3000);
+  setSelectedProductDetails(null);
+
+
+
+  } catch (err) {
+    console.error('Error removing scheduled product:', err.message);
+  }
+};
+
+
+const fetchScheduledProducts = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) return;
+    const snapshot = await getDocs(collection(db, 'users', user.uid, 'schedule'));
+    const scheduledIds = snapshot.docs.map(doc => doc.id);
+    setScheduledProductIds(scheduledIds);
+  } catch (err) {
+    console.error('Error fetching scheduled products:', err);
+  }
+};
+
+
 
 
   const fetchEvents = async () => {
@@ -265,6 +406,7 @@ const fetchProductsFromShelf = async () => {
 useEffect(() => {
   fetchEvents();
   fetchProductsFromShelf(); // Use this instead
+  fetchScheduledProducts();
 }, []);
 
 
@@ -277,6 +419,7 @@ useEffect(() => {
         products={products}
         onSchedule={saveCalendarEntry}
         setSelectedProductDetails={setSelectedProductDetails}
+        scheduledProductIds={scheduledProductIds}
       />
 
       <div style={{ marginTop: '3rem' }}>
@@ -365,12 +508,36 @@ useEffect(() => {
   justifyContent: 'space-between',
   alignItems: 'center',
 }}>
-  {/* Auto Schedule - Far Left */}
-  <div style={{ flex: 1 }}>
+{/* Auto Schedule - Far Left */}
+<div style={{ flex: 1 }}>
+  {scheduledProductIds.includes(selectedProductDetails.id) ? (
   <button
-    onClick={() => console.log('Auto schedule clicked')}
+    onClick={handleRemoveFromSchedule}
     style={{
-      padding: '0.7rem 1.5rem',
+      padding: '0.7rem 1.9rem',
+      backgroundColor: '#fff',
+      color: '#5a273b',
+      border: '2px solid #5a273b',
+      borderRadius: '6px',
+      fontWeight: 'bold',
+      cursor: 'pointer'
+    }}
+    onMouseEnter={e => {
+      e.target.style.backgroundColor = '#5a273b';
+      e.target.style.color = '#fff';
+    }}
+    onMouseLeave={e => {
+      e.target.style.backgroundColor = '#fff';
+      e.target.style.color = '#5a273b';
+    }}
+  >
+    Clear from Schedule 🗑️
+  </button>
+) : (
+  <button
+    onClick={handleAutoSchedule}
+    style={{
+      padding: '0.7rem 1.9rem',
       backgroundColor: '#fff',
       color: '#5a273b',
       border: '2px solid #5a273b',
@@ -389,7 +556,9 @@ useEffect(() => {
   >
     Auto Schedule ✨
   </button>
-  </div>
+)}
+</div>
+
 
   {/* Right side: Cancel + Remove */}
   <div style={{ display: 'flex', gap: '1rem' }}>
@@ -412,6 +581,27 @@ useEffect(() => {
     </div>
   </div>
 )}
+
+{successMessage && (
+  <div style={{
+    position: 'fixed',
+    top: '2rem',
+    left: '40%',
+    transform: 'translateX(-50%)',
+    backgroundColor: '#5a273b',
+    color: '#fff',
+    padding: '1rem 2rem',
+    borderRadius: '10px',
+    boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+    fontSize: '1rem',
+    zIndex: 9999,
+    fontWeight: 'bold',
+    animation: 'fadeInOut 3s ease-in-out'
+  }}>
+    {successMessage}
+  </div>
+)}
+
 {showRemoveConfirm && (
   <div style={{
     position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
