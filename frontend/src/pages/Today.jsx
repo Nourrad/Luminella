@@ -38,7 +38,7 @@ const styles = {
     backgroundColor: '#fff',
     border: '2px solid #5a273b',
     borderRadius: '16px',
-    width: '220px',
+    width: '200px',
     padding: '1rem',
     textAlign: 'center',
     boxShadow: '0 2px 6px rgba(0,0,0,0.1)',
@@ -46,7 +46,7 @@ const styles = {
   },
   productImage: {
     width: '100%',
-    height: '150px',
+    height: '130px',
     objectFit: 'cover',
     borderRadius: '12px',
     marginBottom: '1rem',
