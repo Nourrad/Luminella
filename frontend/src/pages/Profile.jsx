@@ -388,7 +388,7 @@ const toggleConcern = async (concern) => {
           </ul>
 
         <h3 style={{ marginTop: '2rem', fontSize: '1.2rem', fontWeight: 'normal' }}>
-          Editor’s Picks for Your Skin Type:
+          Top recommended products for your skin:
           </h3>
         <div style={{ backgroundColor: '#f0ede5', borderRadius: '12px', padding: '1rem', overflowX: 'auto',
         whiteSpace: 'nowrap', border: '2px solid #f0ede5', marginTop: '1rem', display: 'flex', gap: '1rem'
@@ -534,7 +534,7 @@ const toggleConcern = async (concern) => {
   }}>
     <div style={{
       backgroundColor: '#f0ede5', borderRadius: '16px', padding: '2rem',
-      width: '600px', display: 'flex', gap: '1.5rem', alignItems: 'flex-start', position: 'relative'
+      width: '700px', display: 'flex', gap: '1.5rem', alignItems: 'flex-start', position: 'relative'
     }}>
       <button
         onClick={() => setShowProductModal(false)}
@@ -570,20 +570,66 @@ const toggleConcern = async (concern) => {
           <strong>Times per week:</strong>{' '}
           {selectedProduct.frequencyPerWeek || 'Not specified'}
         </p>
-        <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-          <button onClick={() => setShowProductModal(false)} style={{
-            padding: '0.7rem 1.5rem', backgroundColor: '#5a273b', color: '#fff', border: 'none',
-            borderRadius: '6px', cursor: 'pointer'
-          }}>Close</button>
-          <button
-          onClick={handleAddToShelf}
-          style={{
-            padding: '0.7rem 1.5rem', backgroundColor: '#5a273b', color: '#fff',
-            border: 'none', borderRadius: '6px', cursor: 'pointer'
-          }}>
-            Add to Shelf
-          </button>
-        </div>
+
+<div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+  {/* Add to Shelf on the left */}
+  <button
+    onClick={handleAddToShelf}
+    style={{
+      padding: '0.7rem 1.5rem',
+      backgroundColor: '#fff',
+      color: '#5a273b',
+      border: '2px solid #5a273b',
+      borderRadius: '6px',
+      cursor: 'pointer',
+      fontWeight: 'bold'
+    }}
+    onMouseOver={e => {
+      e.currentTarget.style.backgroundColor = '#5a273b';
+      e.currentTarget.style.color = '#fff';
+    }}
+    onMouseOut={e => {
+      e.currentTarget.style.backgroundColor = '#fff';
+      e.currentTarget.style.color = '#5a273b';
+    }}
+  >
+    Add to Shelf
+  </button>
+
+  {/* Close and Add to Fav on the right */}
+  <div style={{ display: 'flex', gap: '1rem' }}>
+    <button
+      onClick={() => setShowProductModal(false)}
+      style={{
+        padding: '0.7rem 1.5rem',
+        backgroundColor: '#5a273b',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        fontWeight: 'bold'
+      }}
+    >
+      Close
+    </button>
+
+    <button
+      style={{
+        padding: '0.7rem 1.5rem',
+        backgroundColor: '#5a273b',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        fontWeight: 'bold'
+      }}
+      // Add your "Add to Fav" logic here later
+    >
+      Add to List
+    </button>
+  </div>
+</div>
+
       </div>
     </div>
   </div>

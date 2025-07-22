@@ -182,3 +182,10 @@ button:hover {
   background-color: #842222 !important;
   color: white !important;
 }
+.close-button:hover {
+  background-color: transparent !important;
+  color: #000 !important;
+}
+.product-button:hover {
+  background-color: #f0ede5 !important;
+}
